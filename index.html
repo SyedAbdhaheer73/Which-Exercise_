@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Which Exercise?</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .app {
+      background: #020617;
+      padding: 32px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.8rem;
+    }
+
+    .result {
+      margin: 24px 0;
+      font-size: 1.6rem;
+      min-height: 2.5rem;
+    }
+
+    .reason {
+      font-size: 0.95rem;
+      opacity: 0.85;
+      margin-bottom: 20px;
+      min-height: 2rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    .primary {
+      background: #22c55e;
+      color: #022c22;
+    }
+
+    .secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+
+    .meta {
+      margin-top: 20px;
+      font-size: 0.8rem;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <h1>Which Exercise?</h1>
+
+  <div class="result" id="result">Decide your move today</div>
+  <div class="reason" id="reason"></div>
+
+  <button class="primary" onclick="decideExercise()">
+    Decide Today’s Exercise
+  </button>
+
+  <button class="secondary" onclick="skipToday()">
+    Skip Today (Recovery)
+  </button>
+
+  <div class="meta" id="meta"></div>
+</div>
+
+<script>
+  const MUSCLE_GROUPS = ["Push", "Pull", "Legs"];
+
+  function getState() {
+    return {
+      lastTrained: localStorage.getItem("lastTrained"),
+      history: JSON.parse(localStorage.getItem("history") || "[]")
+    };
+  }
+
+  function saveState(state) {
+    localStorage.setItem("lastTrained", state.lastTrained || "");
+    localStorage.setItem("history", JSON.stringify(state.history));
+  }
+
+  function decideExercise() {
+    const state = getState();
+
+    let options = MUSCLE_GROUPS;
+
+    if (state.lastTrained) {
+      options = MUSCLE_GROUPS.filter(m => m !== state.lastTrained);
+    }
+
+    const choice = options[Math.floor(Math.random() * options.length)];
+
+    state.lastTrained = choice;
+    state.history.push({
+      date: today(),
+      action: "TRAIN",
+      value: choice
+    });
+
+    saveState(state);
+
+    document.getElementById("result").innerText = choice;
+    document.getElementById("reason").innerText =
+      state.lastTrained
+        ? `Avoiding overuse. Last trained: ${state.lastTrained}`
+        : "Balanced full-body rotation.";
+
+    updateMeta();
+  }
+
+  function skipToday() {
+    const state = getState();
+
+    state.history.push({
+      date: today(),
+      action: "SKIP",
+      value: "Recovery"
+    });
+
+    saveState(state);
+
+    document.getElementById("result").innerText = "Recovery Day";
+    document.getElementById("reason").innerText =
+      "Skipping does not reset muscle balance. Recovery matters.";
+
+    updateMeta();
+  }
+
+  function updateMeta() {
+    const state = getState();
+    const last = state.history[state.history.length - 1];
+
+    document.getElementById("meta").innerText =
+      last ? `Last action: ${last.action} (${last.value})` : "";
+  }
+
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  updateMeta();
+</script>
+
+</body>
+</html>
