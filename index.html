@@ -22,7 +22,7 @@
       padding: 28px;
       border-radius: 16px;
       width: 100%;
-      max-width: 440px;
+      max-width: 460px;
       box-shadow: 0 20px 50px rgba(0,0,0,0.6);
     }
 
@@ -35,7 +35,7 @@
     .result {
       text-align: center;
       font-size: 1.6rem;
-      margin: 20px 0 8px;
+      margin: 18px 0 6px;
     }
 
     .reason {
@@ -53,17 +53,29 @@
     }
 
     .exercise {
-      margin-bottom: 12px;
+      margin-bottom: 16px;
     }
 
     .exercise strong {
       display: block;
+      margin-bottom: 6px;
+      font-size: 1.05rem;
+    }
+
+    .steps {
+      font-size: 0.9rem;
+      line-height: 1.45;
+      opacity: 0.9;
+    }
+
+    .steps div {
       margin-bottom: 4px;
     }
 
     .hint {
-      font-size: 0.85rem;
-      opacity: 0.7;
+      font-size: 0.8rem;
+      opacity: 0.65;
+      margin-top: 6px;
     }
 
     button {
@@ -121,19 +133,70 @@
 
   const BAND_WORKOUTS = {
     Push: [
-      { name: "Band Chest Press", hint: "Anchor behind you, ribs down" },
-      { name: "Band Overhead Press", hint: "Glutes tight, slow upward path" },
-      { name: "Band Triceps Pushdown", hint: "Elbows pinned to sides" }
+      {
+        name: "Band Chest Press",
+        steps: [
+          "Anchor the band behind you at chest height.",
+          "Hold handles, step forward to create tension.",
+          "Press hands forward until arms extend.",
+          "Return slowly under control."
+        ],
+        hint: "Keep ribs down and neck relaxed."
+      },
+      {
+        name: "Band Overhead Press",
+        steps: [
+          "Stand on the band with feet hip-width.",
+          "Hold band at shoulder height.",
+          "Press upward until arms are overhead.",
+          "Lower slowly back to shoulders."
+        ],
+        hint: "Squeeze glutes to protect lower back."
+      }
     ],
     Pull: [
-      { name: "Band Rows", hint: "Pull elbows back, squeeze shoulder blades" },
-      { name: "Band Face Pulls", hint: "Pull toward eye level, thumbs back" },
-      { name: "Band Biceps Curl", hint: "Control the return, no swinging" }
+      {
+        name: "Band Row",
+        steps: [
+          "Anchor band in front of you at chest height.",
+          "Hold handles with arms extended.",
+          "Pull elbows back toward your ribs.",
+          "Return slowly, keeping tension."
+        ],
+        hint: "Lead with elbows, not hands."
+      },
+      {
+        name: "Band Face Pull",
+        steps: [
+          "Anchor band at face height.",
+          "Grip with palms facing down or in.",
+          "Pull toward your face, elbows high.",
+          "Control the return."
+        ],
+        hint: "Think ‘upper back’, not shoulders."
+      }
     ],
     Legs: [
-      { name: "Band Squats", hint: "Push knees out, sit between hips" },
-      { name: "Band Romanian Deadlift", hint: "Hips back, spine neutral" },
-      { name: "Band Lateral Walks", hint: "Stay low, constant tension" }
+      {
+        name: "Band Squat",
+        steps: [
+          "Stand on band, feet shoulder-width.",
+          "Hold handles at shoulder level.",
+          "Sit hips down and back into squat.",
+          "Stand up by pushing the floor away."
+        ],
+        hint: "Knees gently push outward."
+      },
+      {
+        name: "Band Romanian Deadlift",
+        steps: [
+          "Stand on band, hands holding ends.",
+          "Hinge hips back with slight knee bend.",
+          "Feel stretch in hamstrings.",
+          "Stand tall by driving hips forward."
+        ],
+        hint: "Spine stays long and neutral."
+      }
     ]
   };
 
@@ -170,7 +233,7 @@
 
     document.getElementById("result").innerText = choice + " Day";
     document.getElementById("reason").innerText =
-      "Using bands only. Joint-friendly and controlled.";
+      "Band-only movements with controlled execution.";
 
     renderWorkout(choice);
     updateMeta();
@@ -189,13 +252,18 @@
 
     document.getElementById("result").innerText = "Recovery Day";
     document.getElementById("reason").innerText =
-      "Recovery does not reset muscle balance.";
+      "Skipping supports recovery and balance.";
 
     document.getElementById("workout").innerHTML = `
       <div class="workout">
-        <div class="exercise"><strong>Optional</strong></div>
-        <div class="exercise">• Light band mobility</div>
-        <div class="exercise">• Easy walk or breathing</div>
+        <div class="exercise">
+          <strong>Suggested Recovery</strong>
+          <div class="steps">
+            <div>• Light band mobility</div>
+            <div>• Easy walking</div>
+            <div>• Calm breathing</div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -207,6 +275,9 @@
       .map(e => `
         <div class="exercise">
           <strong>${e.name}</strong>
+          <div class="steps">
+            ${e.steps.map(s => `<div>• ${s}</div>`).join("")}
+          </div>
           ${e.hint ? `<div class="hint">${e.hint}</div>` : ""}
         </div>
       `)
