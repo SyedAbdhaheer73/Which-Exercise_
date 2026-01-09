@@ -8,13 +8,13 @@
   <style>
     body {
       margin: 0;
-      font-family: system-ui, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       background: #0f172a;
       color: #e5e7eb;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
     }
 
     .app {
@@ -22,37 +22,59 @@
       padding: 28px;
       border-radius: 16px;
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-      text-align: center;
     }
 
     h1 {
-      margin: 0;
+      text-align: center;
+      margin-top: 0;
       font-size: 1.8rem;
     }
 
-    .decision {
-      margin: 24px 0;
-      font-size: 1.9rem;
-      font-weight: 700;
+    .result {
+      text-align: center;
+      font-size: 1.6rem;
+      margin: 20px 0 8px;
     }
 
     .reason {
-      font-size: 0.95rem;
-      opacity: 0.85;
-      min-height: 3rem;
+      text-align: center;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-bottom: 14px;
+    }
+
+    .workout {
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .exercise {
+      margin-bottom: 12px;
+    }
+
+    .exercise strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      opacity: 0.7;
     }
 
     button {
       width: 100%;
       padding: 14px;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       border-radius: 10px;
       border: none;
       cursor: pointer;
       font-weight: 600;
-      margin-top: 12px;
+      margin-top: 10px;
     }
 
     .primary {
@@ -66,9 +88,10 @@
     }
 
     .meta {
-      margin-top: 18px;
+      margin-top: 14px;
       font-size: 0.8rem;
       opacity: 0.6;
+      text-align: center;
     }
   </style>
 </head>
@@ -77,11 +100,13 @@
 <div class="app">
   <h1>Which Exercise?</h1>
 
-  <div class="decision" id="decision">Decide today</div>
+  <div class="result" id="result">Decide your move today</div>
   <div class="reason" id="reason"></div>
 
-  <button class="primary" onclick="decideToday()">
-    Decide Today
+  <div id="workout"></div>
+
+  <button class="primary" onclick="decideExercise()">
+    Decide Today’s Workout
   </button>
 
   <button class="secondary" onclick="skipToday()">
@@ -92,151 +117,120 @@
 </div>
 
 <script>
-/* =====================
-   CONFIG (Phase 1)
-===================== */
+  const MUSCLE_GROUPS = ["Push", "Pull", "Legs"];
 
-const MUSCLE_GROUPS = [
-  "ARMS", "BACK", "SHOULDER", "ABS", "LEGS", "MOBILITY", "CARDIO"
-];
-
-const REST_THRESHOLD = 5;          // days in a row
-const SURPRISE_RUN_MIN_DAYS = 28;  // ~ once a month
-
-/* =====================
-   STATE HELPERS
-===================== */
-
-function loadState() {
-  return {
-    history: JSON.parse(localStorage.getItem("history") || "[]"),
-    lastRestDate: localStorage.getItem("lastRestDate"),
-    lastSurpriseRunDate: localStorage.getItem("lastSurpriseRunDate"),
-    consecutiveTrainingDays: Number(localStorage.getItem("consecutiveTrainingDays") || 0)
+  const BAND_WORKOUTS = {
+    Push: [
+      { name: "Band Chest Press", hint: "Anchor behind you, ribs down" },
+      { name: "Band Overhead Press", hint: "Glutes tight, slow upward path" },
+      { name: "Band Triceps Pushdown", hint: "Elbows pinned to sides" }
+    ],
+    Pull: [
+      { name: "Band Rows", hint: "Pull elbows back, squeeze shoulder blades" },
+      { name: "Band Face Pulls", hint: "Pull toward eye level, thumbs back" },
+      { name: "Band Biceps Curl", hint: "Control the return, no swinging" }
+    ],
+    Legs: [
+      { name: "Band Squats", hint: "Push knees out, sit between hips" },
+      { name: "Band Romanian Deadlift", hint: "Hips back, spine neutral" },
+      { name: "Band Lateral Walks", hint: "Stay low, constant tension" }
+    ]
   };
-}
 
-function saveState(state) {
-  localStorage.setItem("history", JSON.stringify(state.history));
-  localStorage.setItem("lastRestDate", state.lastRestDate || "");
-  localStorage.setItem("lastSurpriseRunDate", state.lastSurpriseRunDate || "");
-  localStorage.setItem("consecutiveTrainingDays", state.consecutiveTrainingDays);
-}
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function daysSince(date) {
-  if (!date) return Infinity;
-  return Math.floor((new Date() - new Date(date)) / (1000 * 60 * 60 * 24));
-}
-
-/* =====================
-   CORE DECISION LOGIC
-===================== */
-
-function decideToday() {
-  const state = loadState();
-
-  /* 1️⃣ Forced REST */
-  if (state.consecutiveTrainingDays >= REST_THRESHOLD) {
-    recordDecision(state, "REST", "Recovery");
-    show("REST",
-      "You’ve trained several days in a row. Full rest supports recovery and consistency."
-    );
-    state.lastRestDate = today();
-    state.consecutiveTrainingDays = 0;
-    saveState(state);
-    return;
+  function getState() {
+    return {
+      lastTrained: localStorage.getItem("lastTrained"),
+      history: JSON.parse(localStorage.getItem("history") || "[]")
+    };
   }
 
-  /* 2️⃣ Surprise RUN / JOG */
-  if (
-    daysSince(state.lastSurpriseRunDate) >= SURPRISE_RUN_MIN_DAYS &&
-    !recentLegs(state.history)
-  ) {
-    recordDecision(state, "CARDIO", "RUN / JOG");
-    show("RUN / JOG",
-      "This is a rare low-pressure cardio day to refresh the system."
-    );
-    state.lastSurpriseRunDate = today();
-    state.consecutiveTrainingDays++;
-    saveState(state);
-    return;
+  function saveState(state) {
+    localStorage.setItem("lastTrained", state.lastTrained || "");
+    localStorage.setItem("history", JSON.stringify(state.history));
   }
 
-  /* 3️⃣ Normal training day */
-  const choice = pickMuscleGroup(state.history);
-  recordDecision(state, "TRAIN", choice);
-  show(choice,
-    "Selected to balance muscle usage and support recovery."
-  );
-  state.consecutiveTrainingDays++;
-  saveState(state);
-}
+  function decideExercise() {
+    const state = getState();
 
-/* =====================
-   SUPPORTING RULES
-===================== */
+    let options = MUSCLE_GROUPS;
+    if (state.lastTrained) {
+      options = MUSCLE_GROUPS.filter(m => m !== state.lastTrained);
+    }
 
-function pickMuscleGroup(history) {
-  const recent = history.slice(-2).map(h => h.value);
-  const options = MUSCLE_GROUPS.filter(m => !recent.includes(m));
-  return options[Math.floor(Math.random() * options.length)];
-}
+    const choice = options[Math.floor(Math.random() * options.length)];
 
-function recentLegs(history) {
-  return history.slice(-2).some(h => h.value === "LEGS");
-}
+    state.lastTrained = choice;
+    state.history.push({
+      date: today(),
+      action: "TRAIN",
+      value: choice
+    });
 
-function recordDecision(state, type, value) {
-  state.history.push({
-    date: today(),
-    type,
-    value
-  });
-}
+    saveState(state);
 
-/* =====================
-   USER ACTIONS
-===================== */
+    document.getElementById("result").innerText = choice + " Day";
+    document.getElementById("reason").innerText =
+      "Using bands only. Joint-friendly and controlled.";
 
-function skipToday() {
-  const state = loadState();
+    renderWorkout(choice);
+    updateMeta();
+  }
 
-  state.history.push({
-    date: today(),
-    type: "SKIP",
-    value: "Recovery"
-  });
+  function skipToday() {
+    const state = getState();
 
-  state.consecutiveTrainingDays = 0;
-  saveState(state);
+    state.history.push({
+      date: today(),
+      action: "SKIP",
+      value: "Recovery"
+    });
 
-  show("RECOVERY",
-    "Skipping today counts as recovery and helps long-term consistency."
-  );
-}
+    saveState(state);
 
-/* =====================
-   UI
-===================== */
+    document.getElementById("result").innerText = "Recovery Day";
+    document.getElementById("reason").innerText =
+      "Recovery does not reset muscle balance.";
 
-function show(title, reason) {
-  document.getElementById("decision").innerText = title;
-  document.getElementById("reason").innerText = reason;
+    document.getElementById("workout").innerHTML = `
+      <div class="workout">
+        <div class="exercise"><strong>Optional</strong></div>
+        <div class="exercise">• Light band mobility</div>
+        <div class="exercise">• Easy walk or breathing</div>
+      </div>
+    `;
+
+    updateMeta();
+  }
+
+  function renderWorkout(group) {
+    const list = BAND_WORKOUTS[group]
+      .map(e => `
+        <div class="exercise">
+          <strong>${e.name}</strong>
+          ${e.hint ? `<div class="hint">${e.hint}</div>` : ""}
+        </div>
+      `)
+      .join("");
+
+    document.getElementById("workout").innerHTML = `
+      <div class="workout">
+        ${list}
+      </div>
+    `;
+  }
+
+  function updateMeta() {
+    const state = getState();
+    const last = state.history[state.history.length - 1];
+    document.getElementById("meta").innerText =
+      last ? `Last action: ${last.action} (${last.value})` : "";
+  }
+
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
   updateMeta();
-}
-
-function updateMeta() {
-  const state = loadState();
-  const last = state.history[state.history.length - 1];
-  document.getElementById("meta").innerText =
-    last ? `Last: ${last.type} (${last.value})` : "";
-}
-
-updateMeta();
 </script>
 
 </body>
