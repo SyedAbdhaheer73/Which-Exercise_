@@ -1,12 +1,396 @@
-✅ FATIGUE SYSTEM (0-50 points)
-• Each workout = +5 fatigue points
-• Recovery = -10 fatigue points  
-• >25 fatigue = RECOVERY RECOMMENDED
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Which Exercise?</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-✅ TRAINING STREAKS
-• 4+ consecutive days = RECOVERY NEEDED
-• 2+ days + >15 fatigue = RECOVERY NEEDED
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
 
-✅ SMART BUTTONS
-• "Recommended Training" = Auto-checks if recovery needed
-• "I Need Recovery" = Always available user override
+    .app {
+      background: #020617;
+      padding: 28px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      font-size: 1.8rem;
+    }
+
+    .status {
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .status.recommended {
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid #22c55e;
+    }
+
+    .status.needed {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid #3b82f6;
+    }
+
+    .result {
+      text-align: center;
+      font-size: 1.6rem;
+      margin: 18px 0 6px;
+    }
+
+    .reason {
+      text-align: center;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-bottom: 14px;
+    }
+
+    .workout {
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .exercise {
+      margin-bottom: 16px;
+    }
+
+    .exercise strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1.05rem;
+    }
+
+    .steps {
+      font-size: 0.9rem;
+      line-height: 1.45;
+      opacity: 0.9;
+    }
+
+    .steps div {
+      margin-bottom: 4px;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      opacity: 0.65;
+      margin-top: 6px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 1.05rem;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    .primary {
+      background: #22c55e;
+      color: #022c22;
+    }
+
+    .secondary {
+      background: #334155;
+      color: #e5e7eb;
+    }
+
+    .rest {
+      background: #ef4444;
+      color: white;
+    }
+
+    .meta {
+      margin-top: 14px;
+      font-size: 0.8rem;
+      opacity: 0.6;
+      text-align: center;
+    }
+
+    .fatigue-meter {
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(51, 65, 85, 0.5);
+      border-radius: 8px;
+    }
+
+    .fatigue-bar {
+      width: 100%;
+      height: 8px;
+      background: #1e293b;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .fatigue-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e);
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <h1>🏋️ Smart Workout Planner</h1>
+
+  <div class="status" id="status"></div>
+  
+  <div class="result" id="result">Check your status</div>
+  <div class="reason" id="reason"></div>
+
+  <div class="fatigue-meter">
+    <div>Training Fatigue: <span id="fatiguePercent">0%</span></div>
+    <div class="fatigue-bar">
+      <div class="fatigue-fill" id="fatigueFill" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <div id="workout"></div>
+
+  <button class="primary" id="trainBtn" onclick="decideExercise()">
+    Recommended Training
+  </button>
+
+  <button class="rest" id="restBtn" onclick="chooseRest()">
+    I Need Recovery
+  </button>
+
+  <div class="meta" id="meta"></div>
+</div>
+
+<script>
+  const WORKOUT_CATEGORIES = [
+    "Shoulders", "Arms", "Abs", "Legs", 
+    "Cardio", "Back", "Mobility", "Jog"
+  ];
+
+  const WORKOUTS = {
+    Shoulders: [
+      { name: "Band Lateral Raise", steps: ["Stand on band feet hip-width.", "Raise arms to sides to shoulder height.", "Lower slowly."], hint: "Lead with elbows." },
+      { name: "Band Front Raise", steps: ["Step on band, hold at thighs.", "Raise forward to eye level.", "Lower slowly."], hint: "Shoulders down." }
+    ],
+    Arms: [
+      { name: "Band Bicep Curl", steps: ["Step on band, palms forward.", "Curl to shoulders.", "Lower controlled."], hint: "Squeeze at top." },
+      { name: "Band Tricep Extension", steps: ["Anchor overhead.", "Extend arm overhead.", "Return slowly."], hint: "Upper arm fixed." }
+    ],
+    Abs: [
+      { name: "Band Pallof Press", steps: ["Anchor at chest height.", "Press out, resist rotation.", "Return slowly."], hint: "Brace core hard." },
+      { name: "Band Crunch", steps: ["Anchor low behind head.", "Crunch elbows to knees.", "Lower slowly."], hint: "Exhale on crunch." }
+    ],
+    Legs: [
+      { name: "Band Squat", steps: ["Stand on band, feet shoulder-width.", "Sit hips back down.", "Push through heels."], hint: "Knees over toes." },
+      { name: "Band Lateral Walk", steps: ["Band above knees.", "Step sideways 10 steps each way.", "Stay low."], hint: "Constant tension." }
+    ],
+    Cardio: [
+      { name: "Band High Knee Run", steps: ["Hold band at chest.", "Run in place high knees.", "30-60 seconds."], hint: "Drive elbows." },
+      { name: "Band Shadow Boxing", steps: ["Band at shoulders.", "Jabs, crosses, hooks.", "30-60 seconds."], hint: "Light on toes." }
+    ],
+    Back: [
+      { name: "Band Bent Over Row", steps: ["Step on band, hinge hips.", "Pull to lower ribs.", "Lower controlled."], hint: "Back flat." },
+      { name: "Band Face Pull", steps: ["Anchor at face height.", "Pull to face, elbows high.", "Control return."], hint: "Squeeze rear delts." }
+    ],
+    Mobility: [
+      { name: "Band Pull Apart", steps: ["Hold band at chest.", "Pull apart, squeeze blades.", "Return center."], hint: "Shoulders down." },
+      { name: "Band Dislocates", steps: ["Wide grip band.", "Overhead to behind back.", "Slow controlled."], hint: "Feel shoulders open." }
+    ],
+    Jog: [
+      { name: "Outdoor Jog", steps: ["Warm up 5 min walk.", "Jog 20-30 min steady.", "Cool down walking."], hint: "2:1 run/walk OK." },
+      { name: "Treadmill Jog", steps: ["8-10 km/h speed.", "20-30 min, 1-2% incline.", "Cool down 5 min."], hint: "Midfoot landing." }
+    ]
+  };
+
+  function getState() {
+    return {
+      history: JSON.parse(localStorage.getItem("history") || "[]"),
+      fatiguePoints: parseInt(localStorage.getItem("fatiguePoints") || "0"),
+      consecutiveTrainingDays: parseInt(localStorage.getItem("consecutiveTrainingDays") || "0"),
+      lastTrained: localStorage.getItem("lastTrained") || ""
+    };
+  }
+
+  function saveState(state) {
+    localStorage.setItem("history", JSON.stringify(state.history));
+    localStorage.setItem("fatiguePoints", state.fatiguePoints || 0);
+    localStorage.setItem("consecutiveTrainingDays", state.consecutiveTrainingDays || 0);
+    localStorage.setItem("lastTrained", state.lastTrained || "");
+  }
+
+  function needsRecovery(state) {
+    // Logic for when recovery is NEEDED
+    return (
+      state.fatiguePoints > 25 ||  // High fatigue
+      state.consecutiveTrainingDays >= 4 ||  // 4+ days straight
+      (state.consecutiveTrainingDays >= 2 && state.fatiguePoints > 15)  // 2+ days + moderate fatigue
+    );
+  }
+
+  function decideExercise() {
+    const state = getState();
+    
+    if (needsRecovery(state)) {
+      showRecoveryRecommended();
+      return;
+    }
+
+    // Training logic
+    let options = WORKOUT_CATEGORIES.filter(cat => cat !== state.lastTrained);
+    
+    // Avoid recent workouts (last 5 days)
+    const recent = state.history.slice(-5).filter(h => h.action === "TRAIN").map(h => h.value);
+    options = options.filter(cat => !recent.includes(cat));
+
+    const choice = options[Math.floor(Math.random() * options.length)] || WORKOUT_CATEGORIES[0];
+
+    // Update state
+    state.lastTrained = choice;
+    state.fatiguePoints += 5;  // Each workout adds fatigue
+    state.consecutiveTrainingDays++;
+    state.history.push({ date: today(), action: "TRAIN", value: choice });
+
+    saveState(state);
+    showWorkout(choice, "recommended");
+  }
+
+  function chooseRest() {
+    const state = getState();
+    
+    state.fatiguePoints = Math.max(0, state.fatiguePoints - 10);  // Recovery reduces fatigue
+    state.consecutiveTrainingDays = 0;
+    state.history.push({ date: today(), action: "REST", value: "Recovery" });
+
+    saveState(state);
+    showRecoveryRecommended();
+  }
+
+  function showWorkout(category, status) {
+    document.getElementById("result").innerText = category + " Day";
+    document.getElementById("reason").innerText = getReason(category);
+    
+    renderWorkout(category);
+    updateStatus(status);
+    updateFatigue();
+    updateMeta();
+  }
+
+  function showRecoveryRecommended() {
+    document.getElementById("result").innerText = "Recovery Day";
+    document.getElementById("reason").innerText = "Your body needs this rest.";
+    
+    document.getElementById("workout").innerHTML = `
+      <div class="workout">
+        <div class="exercise">
+          <strong>Active Recovery</strong>
+          <div class="steps">
+            <div>• Light walking 15-20 min</div>
+            <div>• Gentle stretching</div>
+            <div>• Deep breathing 2 min</div>
+            <div>• Foam roll if available</div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    updateStatus("needed");
+    updateFatigue();
+    updateMeta();
+  }
+
+  function updateStatus(status) {
+    const statusEl = document.getElementById("status");
+    if (status === "needed") {
+      statusEl.innerHTML = "⚠️ RECOVERY RECOMMENDED";
+      statusEl.className = "status needed";
+    } else {
+      statusEl.innerHTML = "✅ TRAINING READY";
+      statusEl.className = "status recommended";
+    }
+  }
+
+  function updateFatigue() {
+    const state = getState();
+    const percent = Math.min(100, (state.fatiguePoints / 50) * 100);
+    document.getElementById("fatiguePercent").innerText = Math.round(percent) + "%";
+    document.getElementById("fatigueFill").style.width = percent + "%";
+  }
+
+  function getReason(category) {
+    const reasons = {
+      Shoulders: "Build shoulder strength with controlled raises.",
+      Arms: "Pump up arms with strict band tension.",
+      Abs: "Carve core strength, resist rotation.",
+      Legs: "Power up legs with constant tension.",
+      Cardio: "Boost heart health and burn calories.",
+      Back: "Strengthen posture with pulling power.",
+      Mobility: "Improve range and prevent injury.",
+      Jog: "Build endurance with steady pace."
+    };
+    return reasons[category] || "Great workout choice!";
+  }
+
+  function renderWorkout(group) {
+    const list = WORKOUTS[group]
+      ?.map(e => `
+        <div class="exercise">
+          <strong>${e.name}</strong>
+          <div class="steps">
+            ${e.steps.map(s => `<div>• ${s}</div>`).join("")}
+          </div>
+          ${e.hint ? `<div class="hint">${e.hint}</div>` : ""}
+        </div>
+      `).join("") || "";
+
+    document.getElementById("workout").innerHTML = `
+      <div class="workout">
+        ${list || "No workout selected"}
+      </div>
+    `;
+  }
+
+  function updateMeta() {
+    const state = getState();
+    const last = state.history[state.history.length - 1];
+    document.getElementById("meta").innerText = 
+      last ? `Last: ${last.action} (${last.value})` : "Ready to start";
+  }
+
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  // Initialize
+  window.onload = function() {
+    const state = getState();
+    updateFatigue();
+    updateMeta();
+    
+    if (needsRecovery(state)) {
+      showRecoveryRecommended();
+    }
+  };
+</script>
+
+</body>
+</html>
