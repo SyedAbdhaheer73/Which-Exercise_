@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Which Exercise?</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <style>
     body {
       margin: 0;
@@ -30,24 +29,6 @@
       text-align: center;
       margin-top: 0;
       font-size: 1.8rem;
-    }
-
-    .status {
-      text-align: center;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      font-weight: 500;
-    }
-
-    .status.recommended {
-      background: rgba(34, 197, 94, 0.2);
-      border: 1px solid #22c55e;
-    }
-
-    .status.needed {
-      background: rgba(59, 130, 246, 0.2);
-      border: 1px solid #3b82f6;
     }
 
     .result {
@@ -156,13 +137,11 @@
 <div class="app">
   <h1>🏋️ Smart Workout Planner</h1>
 
-  <div class="status" id="status"></div>
-  
-  <div class="result" id="result">Check your status</div>
-  <div class="reason" id="reason"></div>
+  <div class="result" id="result">Pick your workout</div>
+  <div class="reason" id="reason">Variety prevents overuse injuries</div>
 
   <div class="fatigue-meter">
-    <div>Training Fatigue: <span id="fatiguePercent">0%</span></div>
+    <div>Fatigue Level: <span id="fatiguePercent">0%</span></div>
     <div class="fatigue-bar">
       <div class="fatigue-fill" id="fatigueFill" style="width: 0%"></div>
     </div>
@@ -170,12 +149,12 @@
 
   <div id="workout"></div>
 
-  <button class="primary" id="trainBtn" onclick="decideExercise()">
-    Recommended Training
+  <button class="primary" onclick="decideExercise()">
+    🎯 Random Workout
   </button>
 
-  <button class="rest" id="restBtn" onclick="chooseRest()">
-    I Need Recovery
+  <button class="rest" onclick="chooseRest()">
+    😴 Take Rest Day
   </button>
 
   <div class="meta" id="meta"></div>
@@ -226,7 +205,6 @@
     return {
       history: JSON.parse(localStorage.getItem("history") || "[]"),
       fatiguePoints: parseInt(localStorage.getItem("fatiguePoints") || "0"),
-      consecutiveTrainingDays: parseInt(localStorage.getItem("consecutiveTrainingDays") || "0"),
       lastTrained: localStorage.getItem("lastTrained") || ""
     };
   }
@@ -234,28 +212,13 @@
   function saveState(state) {
     localStorage.setItem("history", JSON.stringify(state.history));
     localStorage.setItem("fatiguePoints", state.fatiguePoints || 0);
-    localStorage.setItem("consecutiveTrainingDays", state.consecutiveTrainingDays || 0);
     localStorage.setItem("lastTrained", state.lastTrained || "");
-  }
-
-  function needsRecovery(state) {
-    // Logic for when recovery is NEEDED
-    return (
-      state.fatiguePoints > 25 ||  // High fatigue
-      state.consecutiveTrainingDays >= 4 ||  // 4+ days straight
-      (state.consecutiveTrainingDays >= 2 && state.fatiguePoints > 15)  // 2+ days + moderate fatigue
-    );
   }
 
   function decideExercise() {
     const state = getState();
     
-    if (needsRecovery(state)) {
-      showRecoveryRecommended();
-      return;
-    }
-
-    // Training logic
+    // Smart variety - avoid same workout 2 days in a row
     let options = WORKOUT_CATEGORIES.filter(cat => cat !== state.lastTrained);
     
     // Avoid recent workouts (last 5 days)
@@ -266,38 +229,34 @@
 
     // Update state
     state.lastTrained = choice;
-    state.fatiguePoints += 5;  // Each workout adds fatigue
-    state.consecutiveTrainingDays++;
+    state.fatiguePoints = Math.min(50, state.fatiguePoints + 5);
     state.history.push({ date: today(), action: "TRAIN", value: choice });
 
     saveState(state);
-    showWorkout(choice, "recommended");
+    showWorkout(choice);
   }
 
   function chooseRest() {
     const state = getState();
     
-    state.fatiguePoints = Math.max(0, state.fatiguePoints - 10);  // Recovery reduces fatigue
-    state.consecutiveTrainingDays = 0;
+    state.fatiguePoints = Math.max(0, state.fatiguePoints - 10);
     state.history.push({ date: today(), action: "REST", value: "Recovery" });
 
     saveState(state);
-    showRecoveryRecommended();
+    showRecovery();
   }
 
-  function showWorkout(category, status) {
+  function showWorkout(category) {
     document.getElementById("result").innerText = category + " Day";
     document.getElementById("reason").innerText = getReason(category);
-    
     renderWorkout(category);
-    updateStatus(status);
     updateFatigue();
     updateMeta();
   }
 
-  function showRecoveryRecommended() {
+  function showRecovery() {
     document.getElementById("result").innerText = "Recovery Day";
-    document.getElementById("reason").innerText = "Your body needs this rest.";
+    document.getElementById("reason").innerText = "Rest day taken - good choice!";
     
     document.getElementById("workout").innerHTML = `
       <div class="workout">
@@ -307,26 +266,14 @@
             <div>• Light walking 15-20 min</div>
             <div>• Gentle stretching</div>
             <div>• Deep breathing 2 min</div>
-            <div>• Foam roll if available</div>
+            <div>• Optional foam rolling</div>
           </div>
         </div>
       </div>
     `;
     
-    updateStatus("needed");
     updateFatigue();
     updateMeta();
-  }
-
-  function updateStatus(status) {
-    const statusEl = document.getElementById("status");
-    if (status === "needed") {
-      statusEl.innerHTML = "⚠️ RECOVERY RECOMMENDED";
-      statusEl.className = "status needed";
-    } else {
-      statusEl.innerHTML = "✅ TRAINING READY";
-      statusEl.className = "status recommended";
-    }
   }
 
   function updateFatigue() {
@@ -364,7 +311,7 @@
 
     document.getElementById("workout").innerHTML = `
       <div class="workout">
-        ${list || "No workout selected"}
+        ${list}
       </div>
     `;
   }
@@ -381,15 +328,8 @@
   }
 
   // Initialize
-  window.onload = function() {
-    const state = getState();
-    updateFatigue();
-    updateMeta();
-    
-    if (needsRecovery(state)) {
-      showRecoveryRecommended();
-    }
-  };
+  updateFatigue();
+  updateMeta();
 </script>
 
 </body>
